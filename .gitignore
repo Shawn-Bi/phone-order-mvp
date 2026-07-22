@@ -1,0 +1,5 @@
+.env
+assistant_id.txt
+phone_number_id.txt
+__pycache__/
+*.pyc
