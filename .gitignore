@@ -1,5 +1,6 @@
 .env
 assistant_id.txt
 phone_number_id.txt
+orders.jsonl
 __pycache__/
 *.pyc
