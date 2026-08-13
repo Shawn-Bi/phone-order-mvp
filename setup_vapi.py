@@ -8,14 +8,21 @@ What it does, step by step:
   3. Imports your Twilio phone number into Vapi and points it at that
      assistant, so incoming calls to the Twilio number are answered by Vapi.
 
-Run this AFTER webhook_server.py is running and exposed via a public URL
-(e.g. ngrok), because the assistant's tool definition needs a real URL to
-send order data to.
+Run this AFTER webhook_server.py is reachable at a public URL, because the
+assistant's tool definition needs a real URL to send order data to. In
+production that's the Railway deployment; for local development it's an
+ngrok tunnel pointing at webhook_server.py.
 
 Usage:
     python setup_vapi.py
+    python setup_vapi.py --webhook-url https://your-app.up.railway.app
+
+Note that --webhook-url wins over WEBHOOK_BASE_URL in .env. Railway's own
+environment variables are NOT visible here - this script runs locally, so
+the deployed URL has to come from .env or the flag.
 """
 
+import argparse
 import json
 import os
 import sys
@@ -61,26 +68,40 @@ def _fail(step: str, response: requests.Response):
     sys.exit(1)
 
 
-def check_env_vars():
+def parse_args():
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--webhook-url",
+        default=WEBHOOK_BASE_URL,
+        help=(
+            "Public base URL of webhook_server.py, e.g. "
+            "https://your-app.up.railway.app. Overrides WEBHOOK_BASE_URL "
+            "from .env; defaults to it when omitted."
+        ),
+    )
+    return parser.parse_args()
+
+
+def check_env_vars(webhook_url: Optional[str]):
     """Step 0: make sure required secrets are actually filled in before we call any API."""
     required = {
         "VAPI_PRIVATE_KEY": VAPI_PRIVATE_KEY,
         "TWILIO_ACCOUNT_SID": TWILIO_ACCOUNT_SID,
         "TWILIO_AUTH_TOKEN": TWILIO_AUTH_TOKEN,
         "TWILIO_PHONE_NUMBER": TWILIO_PHONE_NUMBER,
-        "WEBHOOK_BASE_URL": WEBHOOK_BASE_URL,
+        "WEBHOOK_BASE_URL": webhook_url,
     }
     missing = [k for k, v in required.items() if not v or v.startswith("your_") or "your-" in v]
     if missing:
-        print("[ERROR] Missing/unfilled required environment variables in .env:")
+        print("[ERROR] Missing/unfilled required config (from .env, or --webhook-url):")
         for k in missing:
             print(f"  - {k}")
         sys.exit(1)
 
 
-def create_or_update_assistant() -> str:
+def create_or_update_assistant(webhook_url: str) -> str:
     """Step 1: create the Vapi assistant (or PATCH it if we've already created one)."""
-    payload = build_assistant_payload(WEBHOOK_BASE_URL)
+    payload = build_assistant_payload(webhook_url)
 
     existing_id = None
     if os.path.exists(ASSISTANT_ID_FILE):
@@ -180,8 +201,12 @@ def connect_twilio_number(assistant_id: str):
 
 
 def main():
-    check_env_vars()
-    assistant_id = create_or_update_assistant()
+    args = parse_args()
+    check_env_vars(args.webhook_url)
+    # Show the URL up front: this is what gets baked into the assistant's tool
+    # definition, and pushing a stale one silently breaks order delivery.
+    print(f"Using webhook base URL: {args.webhook_url}")
+    assistant_id = create_or_update_assistant(args.webhook_url)
     connect_twilio_number(assistant_id)
     print("\nSetup complete. Call your Twilio number to test the ordering flow.")
 

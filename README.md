@@ -42,13 +42,25 @@ This listens on `http://localhost:5000` (change with `WEBHOOK_PORT`).
 
 ### 4. Expose it publicly (Vapi needs a real URL, not localhost)
 
-In a second terminal:
+**Production:** the server is deployed on Railway at
+
+```
+https://phone-order-mvp-production.up.railway.app
+```
+
+That URL is already the default in `.env.example`. Railway reads its start
+command from `Procfile` / `railway.json`, and its own environment variables
+are configured in the Railway dashboard — note that those are *not* visible
+to `setup_vapi.py`, which runs locally and reads `.env`.
+
+**Local development:** to point Vapi at the server on your own machine, run
+in a second terminal:
 
 ```bash
 ngrok http 5000
 ```
 
-Copy the `https://...ngrok-free.app` URL it gives you into `.env` as
+Copy the `https://...ngrok-free.app` URL it prints into `.env` as
 `WEBHOOK_BASE_URL`.
 
 ### 5. Create the assistant and connect Twilio
