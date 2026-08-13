@@ -4,3 +4,4 @@ phone_number_id.txt
 orders.jsonl
 __pycache__/
 *.pyc
+*.docx
