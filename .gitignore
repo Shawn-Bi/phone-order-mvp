@@ -5,3 +5,5 @@ orders.jsonl
 __pycache__/
 *.pyc
 *.docx
+.video-tools/
+demo-video/
